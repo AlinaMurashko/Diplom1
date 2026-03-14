@@ -1,278 +1,193 @@
 import pytest
 
-from praktikum.burger import Burger
+from constants import bun_constants as bun
 from praktikum.bun import Bun
 from praktikum.ingredient import Ingredient
 from praktikum.ingredient_types import INGREDIENT_TYPE_SAUCE, INGREDIENT_TYPE_FILLING
-from tests.constants import bun_constants as bun
-from tests.constants import ingredient_constants as ing
-
 
 class TestBurger:
-
-    def test_initial_state(self):
-        """Тест начального состояния бургера"""
-        burger = Burger()
-        assert burger.bun is None
-        assert burger.ingredients == []
-
     @pytest.mark.parametrize(
-        "bun_name, bun_price",
+        "bun_name",
         [
-            [bun.BUN_NAME_BLACK, bun.BUN_PRICE_BLACK],
-            [bun.BUN_NAME_WHITE, bun.BUN_PRICE_WHITE],
-            [bun.BUN_NAME_RED, bun.BUN_PRICE_RED],
-            [bun.BUN_NAME_SESAME, bun.BUN_PRICE_SESAME],
-            [bun.BUN_NAME_BRIOCHE, bun.BUN_PRICE_BRIOCHE]
+            "",  # Пустое имя
+            "bun" * 100,  # Длинное имя
+            "bun@#$%",  # Спецсимволы
+            "Булка",  # Кириллица
         ]
     )
-    def test_set_buns(self, bun_name, bun_price):
-        """Тест установки булочки"""
-        burger = Burger()
+    def test_set_buns_with_different_names(self, burger, bun_name):
+        """Тест установки булочки с граничными значениями имени"""
+        bun_object = Bun(bun_name, 100)
+
+        burger.set_buns(bun_object)
+
+        # Проверяем через методы, не через атрибуты
+        assert burger.get_price() == bun_object.get_price() * 2
+        assert f"(==== {bun_name} ====)" in burger.get_receipt()
+
+    @pytest.mark.parametrize(
+        "bun_price",
+        [
+            0,  # Нулевая цена
+            0.01,  # Минимальная цена
+            1000,  # Большая цена
+            -50,  # Отрицательная цена
+        ]
+    )
+    def test_set_buns_with_different_prices(self, burger, bun_price):
+        """Тест установки булочки с граничными значениями цены"""
+        bun_name = "green bun"
         bun_object = Bun(bun_name, bun_price)
 
         burger.set_buns(bun_object)
 
-        assert burger.bun == bun_object
-        assert burger.bun.get_name() == bun_name
-        assert burger.bun.get_price() == bun_price
+        # Проверяем через методы, не через атрибуты
+        assert burger.get_price() == bun_object.get_price() * 2
+        assert f"(==== {bun_name} ====)" in burger.get_receipt()
+
+    def test_set_buns_changes_bun(self, burger, black_bun, white_bun):
+        """Тест смены булочки"""
+        burger.set_buns(black_bun)
+        price_with_black = burger.get_price()
+
+        burger.set_buns(white_bun)
+        price_with_white = burger.get_price()
+
+        assert price_with_black != price_with_white
+        assert bun.BUN_NAME_BLACK not in burger.get_receipt()
+        assert bun.BUN_NAME_WHITE in burger.get_receipt()
 
     @pytest.mark.parametrize(
-        "ingredient_type, ingredient_name, ingredient_price",
+        "ingredient_type",
         [
-            [INGREDIENT_TYPE_SAUCE, ing.SAUCE_HOT, ing.PRICE_SAUCE_HOT],
-            [INGREDIENT_TYPE_SAUCE, ing.SAUCE_SOUR_CREAM, ing.PRICE_SAUCE_SOUR_CREAM],
-            [INGREDIENT_TYPE_SAUCE, ing.SAUCE_KETCHUP, ing.PRICE_SAUCE_KETCHUP],
-            [INGREDIENT_TYPE_SAUCE, ing.SAUCE_BBQ, ing.SAUCE_BBQ],
-            [INGREDIENT_TYPE_SAUCE, ing.SAUCE_MAYO, ing.PRICE_SAUCE_MAYO],
-            [INGREDIENT_TYPE_FILLING, ing.FILLING_CUTLET, ing.PRICE_FILLING_CUTLET],
-            [INGREDIENT_TYPE_FILLING, ing.FILLING_CHEESE, ing.PRICE_FILLING_CHEESE],
-            [INGREDIENT_TYPE_FILLING, ing.FILLING_LETTUCE, ing.PRICE_FILLING_LETTUCE],
-            [INGREDIENT_TYPE_FILLING, ing.FILLING_TOMATO, ing.PRICE_FILLING_TOMATO],
-            [INGREDIENT_TYPE_FILLING, ing.FILLING_ONION, ing.PRICE_FILLING_ONION],
+            INGREDIENT_TYPE_SAUCE,
+            INGREDIENT_TYPE_FILLING,
+            "unknown_type",  # Неизвестный тип
+            "",  # Пустой тип
         ]
     )
-    def test_add_ingredient(self, ingredient_type, ingredient_name, ingredient_price):
-        """Тест добавления одного ингредиента"""
-        burger = Burger()
-        ingredient = Ingredient(ingredient_type, ingredient_name, ingredient_price)
+    def test_add_ingredient_with_different_types(self, burger, black_bun, ingredient_type):
+        """Тест добавления ингредиентов с разными типами"""
+        burger.set_buns(black_bun)
+        ingredient = Ingredient(ingredient_type, "test", 100)
 
         burger.add_ingredient(ingredient)
 
-        assert len(burger.ingredients) == 1
-        assert burger.ingredients[0] == ingredient
-        assert burger.ingredients[0].get_type() == ingredient_type
-        assert burger.ingredients[0].get_name() == ingredient_name
-        assert burger.ingredients[0].get_price() == ingredient_price
-
-    def test_add_multiple_ingredients(self):
-        """Тест добавления нескольких ингредиентов"""
-        burger = Burger()
-        ingredient1 = Ingredient(INGREDIENT_TYPE_SAUCE, ing.SAUCE_HOT, ing.PRICE_SAUCE_HOT)
-        ingredient2 = Ingredient(INGREDIENT_TYPE_FILLING, ing.FILLING_CUTLET, ing.PRICE_FILLING_CUTLET)
-        ingredient3 = Ingredient(INGREDIENT_TYPE_SAUCE, ing.SAUCE_BBQ, ing.PRICE_SAUCE_BBQ)
-
-        burger.add_ingredient(ingredient1)
-        burger.add_ingredient(ingredient2)
-        burger.add_ingredient(ingredient3)
-
-        assert len(burger.ingredients) == 3
-        assert burger.ingredients == [ingredient1, ingredient2, ingredient3]
-
-    def test_remove_ingredient_first(self):
-        """Тест удаления первого ингредиента"""
-        burger = Burger()
-        ingredient1 = Ingredient(INGREDIENT_TYPE_SAUCE, ing.SAUCE_HOT, ing.PRICE_SAUCE_HOT)
-        ingredient2 = Ingredient(INGREDIENT_TYPE_FILLING, ing.FILLING_CUTLET, ing.PRICE_FILLING_CUTLET)
-        burger.add_ingredient(ingredient1)
-        burger.add_ingredient(ingredient2)
-
-        burger.remove_ingredient(0)
-
-        assert len(burger.ingredients) == 1
-        assert burger.ingredients[0] == ingredient2
-
-    def test_remove_ingredient_last(self):
-        """Тест удаления последнего ингредиента"""
-        burger = Burger()
-        ingredient1 = Ingredient(INGREDIENT_TYPE_SAUCE, ing.SAUCE_HOT, ing.PRICE_SAUCE_HOT)
-        ingredient2 = Ingredient(INGREDIENT_TYPE_FILLING, ing.FILLING_CUTLET, ing.PRICE_FILLING_CUTLET)
-        burger.add_ingredient(ingredient1)
-        burger.add_ingredient(ingredient2)
-
-        burger.remove_ingredient(1)
-
-        assert len(burger.ingredients) == 1
-        assert burger.ingredients[0] == ingredient1
-
-    def test_remove_ingredient_middle(self):
-        """Тест удаления ингредиента из середины"""
-        burger = Burger()
-        ingredient1 = Ingredient(INGREDIENT_TYPE_SAUCE, ing.SAUCE_HOT, ing.PRICE_SAUCE_HOT)
-        ingredient2 = Ingredient(INGREDIENT_TYPE_FILLING, ing.FILLING_CUTLET, ing.PRICE_FILLING_CUTLET)
-        ingredient3 = Ingredient(INGREDIENT_TYPE_SAUCE, ing.SAUCE_BBQ, ing.PRICE_SAUCE_BBQ)
-        burger.add_ingredient(ingredient1)
-        burger.add_ingredient(ingredient2)
-        burger.add_ingredient(ingredient3)
-
-        burger.remove_ingredient(1)
-
-        assert len(burger.ingredients) == 2
-        assert burger.ingredients == [ingredient1, ingredient3]
-
-    def test_move_ingredient_forward(self):
-        """Тест перемещения ингредиента вперед"""
-        burger = Burger()
-        ingredient1 = Ingredient(INGREDIENT_TYPE_SAUCE, ing.SAUCE_HOT, ing.PRICE_SAUCE_HOT)
-        ingredient2 = Ingredient(INGREDIENT_TYPE_FILLING, ing.FILLING_CUTLET, ing.PRICE_FILLING_CUTLET)
-        ingredient3 = Ingredient(INGREDIENT_TYPE_SAUCE, ing.SAUCE_BBQ, ing.PRICE_SAUCE_BBQ)
-        burger.add_ingredient(ingredient1)
-        burger.add_ingredient(ingredient2)
-        burger.add_ingredient(ingredient3)
-
-        burger.move_ingredient(0, 2)
-
-        assert burger.ingredients == [ingredient2, ingredient3, ingredient1]
-
-    def test_move_ingredient_backward(self):
-        """Тест перемещения ингредиента назад"""
-        burger = Burger()
-        ingredient1 = Ingredient(INGREDIENT_TYPE_SAUCE, ing.SAUCE_HOT, ing.PRICE_SAUCE_HOT)
-        ingredient2 = Ingredient(INGREDIENT_TYPE_FILLING, ing.FILLING_CUTLET, ing.PRICE_FILLING_CUTLET)
-        ingredient3 = Ingredient(INGREDIENT_TYPE_SAUCE, ing.SAUCE_BBQ, ing.PRICE_SAUCE_BBQ)
-        burger.add_ingredient(ingredient1)
-        burger.add_ingredient(ingredient2)
-        burger.add_ingredient(ingredient3)
-
-        burger.move_ingredient(2, 0)
-
-        assert burger.ingredients == [ingredient3, ingredient1, ingredient2]
-
-    def test_move_ingredient_same_index(self):
-        """Тест перемещения ингредиента на тот же индекс"""
-        burger = Burger()
-        ingredient1 = Ingredient(INGREDIENT_TYPE_SAUCE, ing.SAUCE_HOT, ing.PRICE_SAUCE_HOT)
-        ingredient2 = Ingredient(INGREDIENT_TYPE_FILLING, ing.FILLING_CUTLET, ing.PRICE_FILLING_CUTLET)
-        burger.add_ingredient(ingredient1)
-        burger.add_ingredient(ingredient2)
-
-        original_order = burger.ingredients.copy()
-        burger.move_ingredient(0, 0)
-
-        assert burger.ingredients == original_order
+        # Проверяем через методы
+        assert burger.get_price() == black_bun.get_price() * 2 + 100
+        assert f"= {ingredient_type.lower()} test =" in burger.get_receipt()
 
     @pytest.mark.parametrize(
-        "bun_name, bun_price, ingredients_data, expected_price",
+        "ingredient_price",
         [
-            [
-                bun.BUN_NAME_BLACK,
-                bun.BUN_PRICE_BLACK,
-                [
-                    (INGREDIENT_TYPE_SAUCE, ing.SAUCE_HOT, ing.PRICE_SAUCE_HOT)
-                ],
-                bun.BUN_PRICE_BLACK * 2 + ing.PRICE_SAUCE_HOT
-            ],
-            [
-                bun.BUN_NAME_WHITE,
-                bun.BUN_PRICE_WHITE,
-                [],
-                bun.BUN_PRICE_WHITE * 2
-            ],
-            [
-                bun.BUN_NAME_RED,
-                bun.BUN_PRICE_RED,
-                [
-                    (INGREDIENT_TYPE_SAUCE, ing.SAUCE_HOT, ing.PRICE_SAUCE_HOT),
-                    (INGREDIENT_TYPE_FILLING, ing.FILLING_CUTLET, ing.PRICE_FILLING_CUTLET)
-                ],
-                bun.BUN_PRICE_RED * 2 + ing.PRICE_SAUCE_HOT + ing.PRICE_FILLING_CUTLET
-            ],
-            [
-                bun.BUN_NAME_SESAME,
-                bun.BUN_PRICE_SESAME,
-                [
-                    (INGREDIENT_TYPE_SAUCE, ing.SAUCE_BBQ, ing.PRICE_SAUCE_BBQ),
-                    (INGREDIENT_TYPE_FILLING, ing.FILLING_CHEESE, ing.PRICE_FILLING_CHEESE),
-                    (INGREDIENT_TYPE_SAUCE, ing.SAUCE_MAYO, ing.PRICE_SAUCE_MAYO)
-                ],
-                bun.BUN_PRICE_SESAME * 2 + ing.PRICE_SAUCE_BBQ + ing.PRICE_FILLING_CHEESE + ing.PRICE_SAUCE_MAYO
-            ],
+            0,  # Нулевая цена
+            0.01,  # Минимальная цена
+            1000,  # Большая цена
+            -50,  # Отрицательная цена
         ]
     )
-    def test_get_price(self, bun_name, bun_price, ingredients_data, expected_price):
-        """Тест расчета цены бургера"""
-        burger = Burger()
+    def test_add_ingredient_with_different_prices(self, burger, black_bun, ingredient_price):
+        """Тест добавления ингредиентов с разными ценами"""
+        burger.set_buns(black_bun)
+        ingredient = Ingredient(INGREDIENT_TYPE_SAUCE, "test", ingredient_price)
 
-        bun_object = Bun(bun_name, bun_price)
-        burger.set_buns(bun_object)
+        burger.add_ingredient(ingredient)
 
-        for ing_type, ing_name, ing_price in ingredients_data:
-            ingredient = Ingredient(ing_type, ing_name, ing_price)
-            burger.add_ingredient(ingredient)
+        assert burger.get_price() == black_bun.get_price() * 2 + ingredient_price
 
-        assert burger.get_price() == expected_price
+    def test_add_multiple_ingredients_increases_price(self, burger, black_bun, hot_sauce, cutlet_filling):
+        """Тест увеличения цены при добавлении ингредиентов"""
+        burger.set_buns(black_bun)
+        initial_price = burger.get_price()
+
+        burger.add_ingredient(hot_sauce)
+        price_after_first = burger.get_price()
+        assert price_after_first == initial_price + hot_sauce.get_price()
+
+        burger.add_ingredient(cutlet_filling)
+        price_after_second = burger.get_price()
+        assert price_after_second == price_after_first + cutlet_filling.get_price()
+
+    def test_remove_ingredient_changes_price(self, burger_with_ingredients):
+        """Тест изменения цены при удалении ингредиента"""
+        initial_price = burger_with_ingredients.get_price()
+
+        burger_with_ingredients.remove_ingredient(0)
+        new_price = burger_with_ingredients.get_price()
+
+        assert new_price < initial_price
+
+    def test_remove_ingredient_changes_receipt(self, burger_with_ingredients, hot_sauce):
+        """Тест изменения чека при удалении ингредиента"""
+        receipt_before = burger_with_ingredients.get_receipt()
+        assert f"= sauce {hot_sauce.get_name()} =" in receipt_before
+
+        burger_with_ingredients.remove_ingredient(0)
+        receipt_after = burger_with_ingredients.get_receipt()
+
+        assert f"= sauce {hot_sauce.get_name()} =" not in receipt_after
 
     @pytest.mark.parametrize(
-        "bun_name, bun_receipt, bun_price, ingredients_data, expected_ingredient_receipts, expected_price",
+        "from_idx, to_idx",
         [
-            [
-                bun.BUN_NAME_BLACK,
-                bun.RECEIPT_BUN_BLACK,
-                bun.BUN_PRICE_BLACK,
-                [
-                    ing.INGREDIENT_HOT_SAUCE
-                ],
-                [
-                    ing.RECEIPT_SAUCE_HOT
-                ],
-                bun.BUN_PRICE_BLACK * 2 + ing.PRICE_SAUCE_HOT
-            ],
-            [
-                bun.BUN_NAME_WHITE,
-                bun.RECEIPT_BUN_WHITE,
-                bun.BUN_PRICE_WHITE,
-                [
-                    ing.INGREDIENT_CUTLET,
-                    ing.INGREDIENT_KETCHUP
-                ],
-                [
-                    ing.RECEIPT_FILLING_CUTLET,
-                    ing.RECEIPT_SAUCE_KETCHUP
-                ],
-                bun.BUN_PRICE_WHITE * 2 + ing.PRICE_FILLING_CUTLET + ing.PRICE_SAUCE_KETCHUP
-            ],
-            [
-                bun.BUN_NAME_RED,
-                bun.RECEIPT_BUN_RED,
-                bun.BUN_PRICE_RED,
-                [
-                    ing.INGREDIENT_SOUR_CREAM,
-                    ing.INGREDIENT_CHEESE
-                ],
-                [
-                    ing.RECEIPT_SAUCE_SOUR_CREAM,
-                    ing.RECEIPT_FILLING_CHEESE
-                ],
-                bun.BUN_PRICE_RED * 2 + ing.PRICE_SAUCE_SOUR_CREAM + ing.PRICE_FILLING_CHEESE
-            ],
+            (0, 1),  # Перемещение вперед
+            (1, 0),  # Перемещение назад
         ]
     )
-    def test_get_receipt_with_constants(self, bun_name, bun_receipt, bun_price, ingredients_data, expected_ingredient_receipts, expected_price):
-        """Тест формирования чека с использованием констант"""
-        burger = Burger()
+    def test_move_ingredient_changes_order(self, burger_with_ingredients, from_idx, to_idx):
+        """Тест изменения порядка ингредиентов при перемещении"""
+        receipt_before = burger_with_ingredients.get_receipt()
+        lines_before = receipt_before.split('\n')
+    
+        burger_with_ingredients.move_ingredient(from_idx, to_idx)
+        receipt_after = burger_with_ingredients.get_receipt()
+        lines_after = receipt_after.split('\n')
+    
+        # Проверяем, что порядок строк изменился
+        assert lines_before[1:3] != lines_after[1:3]
 
-        bun_object = Bun(bun_name, bun_price)
-        burger.set_buns(bun_object)
+    def test_move_ingredient_same_index_no_changes(self, burger_with_ingredients):
+        """Тест перемещения на тот же индекс"""
+        receipt_before = burger_with_ingredients.get_receipt()
 
-        for ing_type, ing_name, ing_price in ingredients_data:
-            ingredient = Ingredient(ing_type, ing_name, ing_price)
-            burger.add_ingredient(ingredient)
+        burger_with_ingredients.move_ingredient(0, 0)
+        receipt_after = burger_with_ingredients.get_receipt()
 
+        assert receipt_before == receipt_after
+
+    def test_get_price_with_bun_only(self, burger, black_bun):
+        """Тест цены бургера только с булочкой"""
+        burger.set_buns(black_bun)
+        assert burger.get_price() == black_bun.get_price() * 2
+
+    def test_get_price_with_ingredients(self, burger_with_ingredients, black_bun, hot_sauce, cutlet_filling):
+        """Тест цены бургера с ингредиентами"""
+        expected_price = black_bun.get_price() * 2 + hot_sauce.get_price() + cutlet_filling.get_price()
+        assert burger_with_ingredients.get_price() == expected_price
+
+    def test_get_receipt_with_bun_only(self, burger, black_bun):
+        """Тест чека только с булочкой"""
+        burger.set_buns(black_bun)
         receipt = burger.get_receipt()
-        assert bun_receipt in receipt
+        lines = receipt.split('\n')
 
-        for ingredient_receipt in expected_ingredient_receipts:
-            assert ingredient_receipt in receipt
+        assert lines[0] == f"(==== {black_bun.get_name()} ====)"
+        assert lines[1] == f"(==== {black_bun.get_name()} ====)"
+        assert lines[2] == ""
+        assert lines[3] == f"Price: {black_bun.get_price() * 2}"
+        assert len(lines) == 4
 
-        assert bun_receipt in receipt
-        assert f"Price: {expected_price}" in receipt
+    def test_get_receipt_with_ingredients(self, burger_with_ingredients, black_bun, hot_sauce, cutlet_filling):
+        """Тест чека с ингредиентами"""
+        receipt = burger_with_ingredients.get_receipt()
+        lines = receipt.split('\n')
+
+        expected_price = black_bun.get_price() * 2 + hot_sauce.get_price() + cutlet_filling.get_price()
+
+        assert lines[0] == f"(==== {black_bun.get_name()} ====)"
+        assert lines[1] == f"= sauce {hot_sauce.get_name()} ="
+        assert lines[2] == f"= filling {cutlet_filling.get_name()} ="
+        assert lines[3] == f"(==== {black_bun.get_name()} ====)"
+        assert lines[4] == ""
+        assert lines[5] == f"Price: {expected_price}"
+        assert len(lines) == 6
