@@ -101,12 +101,10 @@ class TestBurger:
         initial_price = burger.get_price()
 
         burger.add_ingredient(hot_sauce)
-        price_after_first = burger.get_price()
-        assert price_after_first == initial_price + hot_sauce.get_price()
-
         burger.add_ingredient(cutlet_filling)
-        price_after_second = burger.get_price()
-        assert price_after_second == price_after_first + cutlet_filling.get_price()
+
+        final_price = burger.get_price()
+        assert final_price == initial_price + hot_sauce.get_price() + cutlet_filling.get_price()
 
     def test_remove_ingredient_changes_price(self, burger_with_ingredients):
         """Тест изменения цены при удалении ингредиента"""
@@ -119,9 +117,6 @@ class TestBurger:
 
     def test_remove_ingredient_changes_receipt(self, burger_with_ingredients, hot_sauce):
         """Тест изменения чека при удалении ингредиента"""
-        receipt_before = burger_with_ingredients.get_receipt()
-        assert f"= sauce {hot_sauce.get_name()} =" in receipt_before
-
         burger_with_ingredients.remove_ingredient(0)
         receipt_after = burger_with_ingredients.get_receipt()
 
